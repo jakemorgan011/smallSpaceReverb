@@ -19,8 +19,6 @@
 //==========================================================================
 //--------------------------------------------------------------------------
 
-// try making 3 different instances of allpass so that the buffer stops exploding
-// i think the signal duplicates each time it is used.
 class reverb {
     
 public:
@@ -29,11 +27,21 @@ public:
     //
     ~reverb();
     
-    void prepareToPlay(float inSampleRate);
+    void prepareToPlay(float inSampleRate, int samplesPerBlock);
     
     void processBlock(juce::AudioBuffer<float>& inBuffer);
     
     void setParameters(float inReverbSize, float inFeedbackPercent, float dryWetPercent);
+    
+    float normalizeFreq(float inFreq);
+    
+    float freqFromNormalized(float inNorm);
+    
+    void calculateIIR(float inFilterFreq, float inFilterQ);
+    
+    void setFilterParameters(float inFilterFreq, float inFilterQ);
+    
+    void processFilteredSamples();
     
     // nested class for individual all pass processes
     
@@ -157,11 +165,23 @@ private:
     delayChain allpass2;
     delayChain allpass3;
     
+    juce::AudioBuffer<float> wetBuff;
+    
     feedback feedback;
     
     juce::AudioBuffer<float> buff1;
     juce::AudioBuffer<float> buff2;
     juce::AudioBuffer<float> buff3;
     juce::AudioBuffer<float> buff4;
+    
+    // filter
+//    std::unique_ptr<juce::dsp::IIR::Filter<float>> hpfL;
+//    std::unique_ptr<juce::dsp::IIR::Filter<float>> hpfR;
+    
+    juce::dsp::IIR::Filter<float> hpfL;
+    juce::dsp::IIR::Filter<float> hpfR;
+    
+    float lastFilterFreq;
+    float lastFilterQ;
     
 };

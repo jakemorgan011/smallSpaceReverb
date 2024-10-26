@@ -8,6 +8,7 @@
   ==============================================================================
 */
 
+
 #include "reverb.h"
 
 reverb::reverb(){
@@ -33,9 +34,22 @@ reverb::delayChain::~delayChain(){
 // ===================================
 // -----------------------------------
 
-void reverb::prepareToPlay(float inSampleRate){
+void reverb::prepareToPlay(float inSampleRate, int samplesPerBlock){
     
     sampleRate = inSampleRate;
+    
+    /// filter setup
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = inSampleRate;
+    spec.maximumBlockSize = samplesPerBlock;
+    spec.numChannels = 2;
+    
+    hpfL.prepare(spec);
+    hpfR.prepare(spec);
+    
+    calculateIIR(0.7, 0.7);
+    
+    /// regular dsp stuff.
     
     smoothedReverbSize.reset(inSampleRate, 0.01f);
     smoothedFeedbackPercent.reset(inSampleRate, 0.01f);
@@ -53,18 +67,47 @@ void reverb::processBlock(juce::AudioBuffer<float>& inBuffer){
     
     int reverbSize = smoothedReverbSize.getNextValue();
     
+    float* in_channel_left = inBuffer.getWritePointer(0);
+    float* in_channel_right = inBuffer.getWritePointer(1);
+    
+    wetBuff.makeCopyOf(inBuffer);
+    
+    float* wet_channel_left = wetBuff.getWritePointer(0);
+    float* wet_channel_right = wetBuff.getWritePointer(1);
+    
+    int num_samples = wetBuff.getNumSamples();
+    
+    for(int i = 0; i < num_samples; i++){
+        wet_channel_left[i] = hpfL.processSample(wet_channel_left[i]);
+        wet_channel_right[i] = hpfR.processSample(wet_channel_right[i]);
+    }
+    
     allpass1.setDelayTime(reverbSize, 1);
     allpass2.setDelayTime(reverbSize, 2);
     allpass3.setDelayTime(reverbSize, 3);
     
     // not exploding (good)
     // no tails however.
-    allpass1.processBlock(inBuffer);
-    allpass2.processBlock(inBuffer);
-    allpass3.processBlock(inBuffer);
+    allpass1.processBlock(wetBuff);
+    allpass2.processBlock(wetBuff);
+    allpass3.processBlock(wetBuff);
     //post allpass goes to feedback section. may need to be tweaked for longer tails. currently small room
     
-    feedback.processBlock(inBuffer);
+    feedback.processBlock(wetBuff);
+    
+    // dry wet calculation;
+    
+    float dry_wet = smoothedDryWetPercent.getNextValue();
+    
+    int num_samples_inBuff = inBuffer.getNumSamples();
+    for(int i = 0; i < num_samples_inBuff; i++){
+        
+        in_channel_left[i] = ((in_channel_left[i] * (1-dry_wet)) + (wet_channel_left[i] * (dry_wet)));
+        in_channel_right[i] = ((in_channel_right[i] * (1-dry_wet)) + (wet_channel_right[i] * (dry_wet)));
+    }
+    
+    
+    
     
 }
 
@@ -192,10 +235,10 @@ void reverb::feedback::processBlock(juce::AudioBuffer<float>& inBuffer){
     int numSamples = inBuffer.getNumSamples();
     
     // needs to be simultaneous make buffer 4 variables
-    buff1 = inBuffer;
-    buff2 = inBuffer;
-    buff3 = inBuffer;
-    buff4 = inBuffer;
+    buff1.makeCopyOf(inBuffer);
+    buff2.makeCopyOf(inBuffer);
+    buff3.makeCopyOf(inBuffer);
+    buff4.makeCopyOf(inBuffer);
     
     
     simulFeedback1.processBlock(buff1);
@@ -319,3 +362,42 @@ void reverb::feedback::simulFeedback::processBlock(juce::AudioBuffer<float>& inB
         }
     }
 }
+
+
+
+// ==================================
+///             filters
+// ==================================
+
+
+float reverb::normalizeFreq(float inFreq){
+    
+    return logf(juce::jlimit(0.001f, 21950.f, inFreq) / 10.f) / logf(2200.f);
+}
+
+float reverb::freqFromNormalized(float inNorm){
+    
+    return juce::jlimit(0.001f, 21950.f, 10 * powf(2200.f, inNorm));
+}
+
+void reverb::calculateIIR(float inFilterFreq, float inFilterQ){
+    float freq = freqFromNormalized(inFilterFreq);
+    float Q = (powf(60, inFilterQ)- 0.95f)/50.f;
+    
+    hpfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
+    hpfR.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
+}
+
+void reverb::setFilterParameters(float inFilterFreq, float inFilterQ){
+    
+    if(inFilterFreq != lastFilterFreq || inFilterQ != lastFilterQ){
+        
+        hpfL.reset();
+        hpfR.reset();
+        
+        calculateIIR(inFilterFreq, inFilterQ);
+    }
+    lastFilterFreq = inFilterFreq;
+    lastFilterFreq = inFilterFreq;
+}
+

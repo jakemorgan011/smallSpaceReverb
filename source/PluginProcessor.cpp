@@ -25,6 +25,8 @@ ReverbTestAudioProcessor::ReverbTestAudioProcessor()
     _constructValueTreeState();
     size = dValueTreeState->getRawParameterValue("size");
     dryWet = dValueTreeState->getRawParameterValue("dryWet");
+    q = dValueTreeState->getRawParameterValue("q");
+    cutoff = dValueTreeState->getRawParameterValue("cutoff");
 }
 
 ReverbTestAudioProcessor::~ReverbTestAudioProcessor()
@@ -96,7 +98,7 @@ void ReverbTestAudioProcessor::changeProgramName (int index, const juce::String&
 //==============================================================================
 void ReverbTestAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    reverb.prepareToPlay(sampleRate);
+    reverb.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void ReverbTestAudioProcessor::releaseResources()
@@ -133,9 +135,16 @@ bool ReverbTestAudioProcessor::isBusesLayoutSupported (const BusesLayout& layout
 
 void ReverbTestAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    reverb.setParameters(*size, 0, *dryWet);
     
+    
+    
+    reverb.setParameters(*size, 0, *dryWet);
+    //highpass.setParameters(*cutoff, *q);
+    reverb.setFilterParameters(*cutoff, *q);
+    
+    //highpass.processBlock(buffer);
     reverb.processBlock(buffer);
+    
 }
 
 //==============================================================================
@@ -173,6 +182,8 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 void ReverbTestAudioProcessor::_constructValueTreeState(){
     dValueTreeState.reset(new juce::AudioProcessorValueTreeState(*this, nullptr, juce::Identifier("reverb"),{
         std::make_unique<juce::AudioParameterInt>(juce::ParameterID("size",1),"Size",1,50,25),
-        std::make_unique<juce::AudioParameterFloat> (juce::ParameterID("dryWet",1),"Dry/Wet",0.0f,1.0f,0.5f)
+        std::make_unique<juce::AudioParameterFloat> (juce::ParameterID("dryWet",1),"Dry/Wet",0.0f,1.0f,0.5f),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("cutoff",1),"highPassCutoff", 0.0f,1.f,0.f),
+        std::make_unique<juce::AudioParameterFloat>(juce::ParameterID("q",1),"Q", 0.f,1.f,0.f)
     }));
 }

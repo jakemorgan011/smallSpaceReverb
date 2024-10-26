@@ -32,6 +32,12 @@ private:
     juce::Slider dryWetSlider;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> dryWetSliderAttachment;
     
+    juce::Slider lpSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lpSliderAttachment;
+    
+    juce::Slider qSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> qSliderAttachment;
+    
     ReverbTestAudioProcessor& audioProcessor;
     
     // we need this::::
