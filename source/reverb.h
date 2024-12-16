@@ -37,9 +37,9 @@ public:
     
     float freqFromNormalized(float inNorm);
     
-    void calculateIIR(float inFilterFreq, float inFilterQ);
+    void calculateIIR(float inFilterFreq, float inFilterQ, float inFilterGain);
     
-    void setFilterParameters(float inFilterFreq, float inFilterQ);
+    void setFilterParameters(float inFilterFreq, float inFilterQ, float inFilterGain);
     
     void processFilteredSamples();
     
@@ -116,6 +116,9 @@ public:
             int readhead = 0;
             int writehead = 0;
             
+            float feedbackL = 0.f;
+            float feedbackR = 0.f;
+            
             // circular buffer
             juce::AudioBuffer<float> feedbackBuffer;
             
@@ -183,5 +186,6 @@ private:
     
     float lastFilterFreq;
     float lastFilterQ;
+    float lastFilterGain;
     
 };

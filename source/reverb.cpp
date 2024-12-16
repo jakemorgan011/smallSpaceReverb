@@ -47,7 +47,7 @@ void reverb::prepareToPlay(float inSampleRate, int samplesPerBlock){
     hpfL.prepare(spec);
     hpfR.prepare(spec);
     
-    calculateIIR(0.7, 0.7);
+    calculateIIR(0.7, 0.7, 0.5);
     
     /// regular dsp stuff.
     
@@ -269,6 +269,9 @@ void reverb::feedback::processBlock(juce::AudioBuffer<float>& inBuffer){
     
     for(int i = 0; i < numSamples; i++){
         
+        mainOutLeft[i] = 0.f;
+        mainOutRight[i] = 0.f;
+        
         //left channel
         mainOutLeft[i] = (buff1Left[i] + buff3Left[i] + buff1Right[i] + buff3Right[i]);
         mainOutLeft[i] += ((buff1Left[i] + buff3Left[i] + buff1Right[i] + buff3Right[i])-(buff2Left[i] + buff2Right[i] + buff4Left[i] + buff4Right[i]))* -1 * (0.01f);
@@ -338,8 +341,8 @@ void reverb::feedback::simulFeedback::processBlock(juce::AudioBuffer<float>& inB
         
         // no feedback here because this formula uses a feedback mixer at the end
         // make sure you multiply the output by 0.7 at the end of the function
-        circular_channel_left[writehead] = input_left;
-        circular_channel_right[writehead] = input_right;
+        circular_channel_left[writehead] = input_left + feedbackL;
+        circular_channel_right[writehead] = input_right + feedbackR;
         
         // no dry wet here because we leave that for the superclass Reverb
         //readhead calculation
@@ -354,6 +357,9 @@ void reverb::feedback::simulFeedback::processBlock(juce::AudioBuffer<float>& inB
         
         in_channel_left[i] = (input_left + delay_out_left)* scale;
         in_channel_right[i] = (input_right + delay_out_right)* scale;
+        
+        feedbackL = delay_out_left * 0.7f;
+        feedbackR = delay_out_right * 0.7f;
         
         
         writehead++;
@@ -380,24 +386,28 @@ float reverb::freqFromNormalized(float inNorm){
     return juce::jlimit(0.001f, 21950.f, 10 * powf(2200.f, inNorm));
 }
 
-void reverb::calculateIIR(float inFilterFreq, float inFilterQ){
+void reverb::calculateIIR(float inFilterFreq, float inFilterQ, float inFilterGain){
     float freq = freqFromNormalized(inFilterFreq);
     float Q = (powf(60, inFilterQ)- 0.95f)/50.f;
+    float gain = inFilterGain;
     
-    hpfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
-    hpfR.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
+    /// hpfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
+    hpfL.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(sampleRate, freq, Q, gain);
+    /// hpfR.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, freq, Q);
+    hpfR.coefficients = juce::dsp::IIR::Coefficients<float>::makeLowShelf(sampleRate, freq, Q, gain);
 }
 
-void reverb::setFilterParameters(float inFilterFreq, float inFilterQ){
+void reverb::setFilterParameters(float inFilterFreq, float inFilterQ, float inFilterGain){
     
-    if(inFilterFreq != lastFilterFreq || inFilterQ != lastFilterQ){
+    if(inFilterFreq != lastFilterFreq || inFilterQ != lastFilterQ || inFilterGain != lastFilterGain){
         
         hpfL.reset();
         hpfR.reset();
         
-        calculateIIR(inFilterFreq, inFilterQ);
+        calculateIIR(inFilterFreq, inFilterQ, inFilterGain);
     }
     lastFilterFreq = inFilterFreq;
     lastFilterFreq = inFilterFreq;
+    lastFilterGain = inFilterGain;
 }
 

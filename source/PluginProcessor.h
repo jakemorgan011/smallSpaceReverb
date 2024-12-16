@@ -10,7 +10,6 @@
 
 #include <JuceHeader.h>
 #include "reverb.h"
-#include "highPassInput.h"
 
 //==============================================================================
 /**
@@ -62,13 +61,13 @@ public:
 private:
     
     reverb reverb;
-    highpass highpass;
     
     std::atomic<float>* size = nullptr;
     std::atomic<float>* dryWet = nullptr;
     std::atomic<float>* feedbackPercent = nullptr;
     std::atomic<float>* cutoff = nullptr;
     std::atomic<float>* q = nullptr;
+    std::atomic<float>* gain = nullptr;
     
     std::unique_ptr<juce::AudioProcessorValueTreeState> dValueTreeState;
     

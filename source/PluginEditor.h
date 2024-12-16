@@ -10,6 +10,7 @@
 
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
+#include "customLookAndFeel.h"
 
 //==============================================================================
 /**
@@ -25,7 +26,9 @@ public:
     void resized() override;
 
 private:
-
+    
+    customLookAndFeel customLookAndFeel;
+    
     juce::Slider sizeSlider;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sizeSliderAttachment;
     
@@ -37,6 +40,12 @@ private:
     
     juce::Slider qSlider;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> qSliderAttachment;
+    
+    juce::Slider gainSlider;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> gainSliderAttachment;
+    
+    
+    juce::Image background;
     
     ReverbTestAudioProcessor& audioProcessor;
     
